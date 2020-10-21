@@ -25,7 +25,7 @@ jobs:
       - run: mix distillery.release
       - name: Configure SSH
         run: |
-          mkdir -p ~/.ssh/
+          mkdir -p ~/.ssh
           echo "$SSH_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           cat >>~/.ssh/config <<END
@@ -35,14 +35,19 @@ jobs:
             IdentityFile ~/.ssh/deploy_key
             StrictHostKeyChecking no
           END
+
           export VERSION="$(cat _build/prod/rel/${APP_NAME}/releases/start_erl.data | awk '{print $2}')"
           export SOURCE="_build/prod/rel/${APP_NAME}/releases/${VERSION}/${APP_NAME}.tar.gz"
           export SHA=$(git rev-parse --short HEAD)
           export TARGET="/tmp/${APP_NAME}-${SHA}.tar.gz"
           rsync -chav --delete $SOURCE production:$TARGET
-          ssh production "mkdir -p ~/releases"
-          ssh production "tar xvf  $TARGET --one-top-level -C ~/releases"
-          ssh production "ln -s ~/${APP_NAME}-${SHA} ~/releases/${APP_NAME}-${SHA}"
+
+          ssh production "bash -s" <<EOF
+            mkdir -p ~/releases
+            tar xvf  $TARGET --one-top-level -C ~/releases
+            ln -s app ~/releases/${APP_NAME}-${SHA}
+            app/bin/app start
+          EOF
         env:
           SSH_USER: ${{ secrets.PRODUCTION_USERNAME }}
           SSH_KEY: ${{ secrets.PRODUCTION_KEY }}
