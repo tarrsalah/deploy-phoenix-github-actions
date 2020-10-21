@@ -20,10 +20,21 @@ jobs:
         with:
           otp-version: 22.0
           elixir-version: 1.10.0
-      - run: mix deps.get
-      - run: mix compile
-      - run: mix distillery.release
-      - name: Configure SSH
+
+      - name: Prepare SHA commit
+        run: |
+          export SHA=$(git rev-parse --short HEAD)
+          echo "SHA=$SHA"  >> $GITHUB_ENV
+
+      - name: Install dependencies
+        run: mix deps.get
+
+      - name: Compile and release
+        run: |
+            mix compile
+            mix distillery.release
+
+      - name: Deploy
         run: |
           mkdir -p ~/.ssh
           echo "$SSH_KEY" > ~/.ssh/deploy_key
@@ -38,7 +49,6 @@ jobs:
 
           export VERSION="$(cat _build/prod/rel/${APP_NAME}/releases/start_erl.data | awk '{print $2}')"
           export SOURCE="_build/prod/rel/${APP_NAME}/releases/${VERSION}/${APP_NAME}.tar.gz"
-          export SHA=$(git rev-parse --short HEAD)
           export TARGET="/tmp/${APP_NAME}-${SHA}.tar.gz"
           rsync -chav --delete $SOURCE production:$TARGET
           ssh production "bash -s" <<EOF

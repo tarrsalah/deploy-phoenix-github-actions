@@ -16,6 +16,9 @@ config :app, AppWeb.Endpoint,
   live_view: [signing_salt: "McJRkwfc"],
   server: true
 
+config :app,
+  sha: System.get_env["SHA"]
+
 # Configures Elixir's Logger
 config :logger, :console,
   format: "$time $metadata[$level] $message\n",
