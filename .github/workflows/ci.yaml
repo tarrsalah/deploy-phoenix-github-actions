@@ -42,6 +42,7 @@ jobs:
           rsync -chav --delete $SOURCE production:$TARGET
           ssh production "mkdir -p ~/releases"
           ssh production "tar xvf  $TARGET --one-top-level -C ~/releases"
+          ssh production "ln -s ~/${APP_NAME}-${SHA} ~/releases/${APP_NAME}-${SHA}"
         env:
           SSH_USER: ${{ secrets.PRODUCTION_USERNAME }}
           SSH_KEY: ${{ secrets.PRODUCTION_KEY }}
