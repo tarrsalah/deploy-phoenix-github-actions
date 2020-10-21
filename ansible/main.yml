@@ -1,0 +1,25 @@
+- name: Install erlang/elixir
+  hosts: ic_server
+  tasks:
+    - name: apt-get update
+      apt: update_cache=yes cache_valid_time=86400
+
+    - name: erlang - add to repositories list
+      apt_repository:
+        repo: deb https://packages.erlang-solutions.com/ubuntu focal contrib
+        state: present
+        update_cache: no
+
+    - name: erlang - add the GPG key of erlang solutions repo
+      apt_key:
+        url: https://packages.erlang-solutions.com/ubuntu/erlang_solutions.asc
+        state: present
+
+    - name: update cache
+      apt:
+        update_cache: yes
+    - name: erlang - install erlang
+      apt:
+        package:
+          - "erlang=1:23.*"
+        state: present
