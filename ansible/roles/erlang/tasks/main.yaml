@@ -1,0 +1,20 @@
+- name: erlang - add to repositories list
+  apt_repository:
+    repo: deb https://packages.erlang-solutions.com/ubuntu focal contrib
+    state: present
+    update_cache: no
+
+- name: erlang - add the GPG key of erlang solutions repo
+  apt_key:
+    url: https://packages.erlang-solutions.com/ubuntu/erlang_solutions.asc
+    state: present
+
+- name: Update cache
+  apt:
+    update_cache: yes
+
+- name: erlang - install erlang
+  apt:
+    package:
+      - "erlang=1:23.*"
+    state: present
