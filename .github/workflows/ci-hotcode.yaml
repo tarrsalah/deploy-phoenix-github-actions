@@ -36,6 +36,10 @@ jobs:
             IdentityFile ~/.ssh/deploy_key
             StrictHostKeyChecking no
           END
+        env:
+          SSH_HOST: ${{ secrets.PRODUCTION_HOST }}
+          SSH_USER: ${{ secrets.PRODUCTION_USERNAME }}
+          SSH_KEY: ${{ secrets.PRODUCTION_KEY }}
 
       - name: Deploy
         run: |
@@ -45,10 +49,7 @@ jobs:
           rsync -chav --delete $SOURCE production:$TARGET
 
           ssh production "bash -s" <<EOF
-            cp -r $TARGET ~/${APP_NAME}/_build/prod/rel/{APP_NAME}/${VERSION}/{APP_NAME}.tar.gz
-            ./{APP_NAME}/bin/{APP_NAME} upgrade ${VERSION}
+            mkdir -p ${APP_NAME}/releases/${VERSION}
+            cp -r $TARGET ${APP_NAME}/releases/${VERSION}/${APP_NAME}.tar.gz
+            ./${APP_NAME}/bin/${APP_NAME} upgrade ${VERSION}
           EOF
-        env:
-          SSH_USER: ${{ secrets.PRODUCTION_USERNAME }}
-          SSH_KEY: ${{ secrets.PRODUCTION_KEY }}
-          SSH_HOST: ${{ secrets.PRODUCTION_HOST }}

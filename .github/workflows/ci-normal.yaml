@@ -1,7 +1,6 @@
-name: Normal deployment
+name: Normal deployement
 on:
-  workflow_dispatch
-
+  workflow_dispatch:
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -17,22 +16,13 @@ jobs:
           otp-version: 22.0
           elixir-version: 1.10.0
 
-      - name: Prepare SHA commit
-        run: |
-          export SHA=$(git rev-parse --short HEAD)
-          echo "SHA=$SHA"  >> $GITHUB_ENV
-
       - name: Install dependencies
         run: mix deps.get
 
       - name: Compile and release
         run: |
-            mix compile
-            if [[ ${{ github.event.inputs.mode }} == "hotcode" ]]
-              mix distillery.release --upgrade
-            else
-              mix distillery.release
-            fi
+          mix compile
+          mix distillery.release
 
       - name: SSH config
         run: |
@@ -46,29 +36,21 @@ jobs:
             IdentityFile ~/.ssh/deploy_key
             StrictHostKeyChecking no
           END
+        env:
+          SSH_HOST: ${{ secrets.PRODUCTION_HOST }}
+          SSH_USER: ${{ secrets.PRODUCTION_USERNAME }}
+          SSH_KEY: ${{ secrets.PRODUCTION_KEY }}
 
       - name: Deploy
         run: |
           export VERSION="$(cat _build/prod/rel/${APP_NAME}/releases/start_erl.data | awk '{print $2}')"
           export SOURCE="_build/prod/rel/${APP_NAME}/releases/${VERSION}/${APP_NAME}.tar.gz"
-          export TARGET="/tmp/${APP_NAME}-${SHA}.tar.gz"
+          export TARGET="/tmp/${APP_NAME}.tar.gz"
           rsync -chav --delete $SOURCE production:$TARGET
-          ssh production "bash -s" <<EOF
-            mkdir -p ~/releases
-            tar xvf  $TARGET --one-top-level -C ~/releases
 
-            if [[ -d ./app ]]
-            then
-              rm -rf ~/app/releases/${VERSION}
-              mkdir -p ~/app/releases/${VERSION}
-              cp -r $TARGET ~/app/releases/${VERSION}/app.tar.gz
-              ./app/bin/app upgrade ${VERSION}
-            else
-              cp -r ~/releases/${APP_NAME}-${SHA} app
-              systemctl start deploy-phoenix
-            fi
+          ssh production "bash -s" <<EOF
+            systemctl stop deploy-phoenix
+            rm -rf app
+            tar xvf  $TARGET --one-top-level -C .
+            systemctl start deploy-phoenix
           EOF
-        env:
-          SSH_USER: ${{ secrets.PRODUCTION_USERNAME }}
-          SSH_KEY: ${{ secrets.PRODUCTION_KEY }}
-          SSH_HOST: ${{ secrets.PRODUCTION_HOST }}
