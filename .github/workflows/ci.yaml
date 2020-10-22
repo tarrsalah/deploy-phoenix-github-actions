@@ -34,6 +34,7 @@ jobs:
             mix compile
             mix distillery.release
 
+
       - name: Deploy
         run: |
           mkdir -p ~/.ssh
@@ -54,9 +55,17 @@ jobs:
           ssh production "bash -s" <<EOF
             mkdir -p ~/releases
             tar xvf  $TARGET --one-top-level -C ~/releases
-            rm -rf ./app
-            ln -s /root/releases/${APP_NAME}-${SHA} app
-            systemctl restart deploy-phoenix
+
+            if [[ -d ./app ]]
+            then
+              rm -rf ~/app/releases/${VERSION}
+              mkdir -p ~/app/releases/${VERSION}
+              cp -r $TARGET ~/app/releases/${VERSION}/app.tar.gz
+              ./app/bin/app upgrade ${VERSION}
+            else
+              cp -r ~/releases/${APP_NAME}-${SHA} app
+              systemctl start deploy-phoenix
+            fi
           EOF
         env:
           SSH_USER: ${{ secrets.PRODUCTION_USERNAME }}
