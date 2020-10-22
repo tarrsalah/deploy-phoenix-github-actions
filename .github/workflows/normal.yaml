@@ -1,13 +1,7 @@
-name: CI
+name: Normal deployment
 on:
-  workflow_dispatch:
-    inputs:
-      logLevel:
-        description: 'Log level'
-        required: true
-        default: 'warning'
-      tags:
-        description: 'Test scenario tags'
+  workflow_dispatch
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -34,9 +28,13 @@ jobs:
       - name: Compile and release
         run: |
             mix compile
-            mix distillery.release --upgrade
+            if [[ ${{ github.event.inputs.mode }} == "hotcode" ]]
+              mix distillery.release --upgrade
+            else
+              mix distillery.release
+            fi
 
-      - name: Deploy
+      - name: SSH config
         run: |
           mkdir -p ~/.ssh
           echo "$SSH_KEY" > ~/.ssh/deploy_key
@@ -49,6 +47,8 @@ jobs:
             StrictHostKeyChecking no
           END
 
+      - name: Deploy
+        run: |
           export VERSION="$(cat _build/prod/rel/${APP_NAME}/releases/start_erl.data | awk '{print $2}')"
           export SOURCE="_build/prod/rel/${APP_NAME}/releases/${VERSION}/${APP_NAME}.tar.gz"
           export TARGET="/tmp/${APP_NAME}-${SHA}.tar.gz"
