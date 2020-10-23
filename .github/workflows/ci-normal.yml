@@ -1,28 +1,57 @@
 name: Normal deployement
 
-# Controls when the action will run. Workflow runs when manually triggered using the UI
-# or API.
 on:
   workflow_dispatch:
-    # Inputs the workflow accepts.
-    inputs:
-      name:
-        # Friendly description to be shown in the UI instead of 'name'
-        description: 'Person to greet'
-        # Default value if no value is explicitly provided
-        default: 'World'
-        # Input has to be provided for the workflow to run
-        required: true
 
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-  # This workflow contains a single job called "greet"
-  greet:
-    # The type of runner that the job will run on
+  build:
     runs-on: ubuntu-latest
-
-    # Steps represent a sequence of tasks that will be executed as part of the job
+    env:
+      APP_NAME: app
+      MIX_ENV: prod
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      SECRET_KEY_BASE: ${{ secrets.SECRET_KEY_BASE }}
     steps:
-    # Runs a single command using the runners shell
-    - name: Send greeting
-      run: echo "Hello ${{ github.event.inputs.name }}"
+      - uses: actions/checkout@v2
+      - uses: actions/setup-elixir@v1.0.0
+        with:
+          otp-version: 22.0
+          elixir-version: 1.10.0
+
+      - name: Install dependencies
+        run: mix deps.get
+
+      - name: Compile and release
+        run: |
+          mix compile
+          mix distillery.release
+
+      - name: Configure SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          cat >>~/.ssh/config <<END
+          Host production
+            HostName $SSH_HOST
+            User $SSH_USER
+            IdentityFile ~/.ssh/deploy_key
+            StrictHostKeyChecking no
+          END
+        env:
+          SSH_HOST: ${{ secrets.PRODUCTION_HOST }}
+          SSH_USER: ${{ secrets.PRODUCTION_USERNAME }}
+          SSH_KEY: ${{ secrets.PRODUCTION_KEY }}
+
+      - name: Deploy to production
+        run: |
+          export VERSION="$(cat _build/prod/rel/${APP_NAME}/releases/start_erl.data | awk '{print $2}')"
+          export SOURCE="_build/prod/rel/${APP_NAME}/releases/${VERSION}/${APP_NAME}.tar.gz"
+          export TARGET="/tmp/${APP_NAME}.tar.gz"
+          rsync -cha --delete $SOURCE production:$TARGET
+
+          ssh production "bash -s" <<EOF
+            rm -rf app
+            tar xf  $TARGET --one-top-level -C .
+            systemctl restart deploy-phoenix
+          EOF
