@@ -13,19 +13,6 @@ jobs:
       SECRET_KEY_BASE: ${{ secrets.SECRET_KEY_BASE }}
     steps:
       - uses: actions/checkout@v2
-      - uses: actions/setup-elixir@v1.0.0
-        with:
-          otp-version: 22.0
-          elixir-version: 1.10.0
-
-      - name: Install dependencies
-        run: mix deps.get
-
-      - name: Compile and release
-        run: |
-          mix compile
-          mix distillery.release
-
       - name: Configure SSH
         run: |
           mkdir -p ~/.ssh
@@ -43,15 +30,25 @@ jobs:
           SSH_USER: ${{ secrets.PRODUCTION_USERNAME }}
           SSH_KEY: ${{ secrets.PRODUCTION_KEY }}
 
+      - name: Prepare build environment
+        run: |
+          ssh production "mkdir -p /root/build"
+          ssh production "mkdir -p /root/app"
+          echo "BUILD_DIR=/root/build" >> $GITHUB_ENV
+          echo "APP_DIR=/root/app" >> $GITHUB_ENV
+
       - name: Deploy to production
         run: |
-          export VERSION="$(cat _build/prod/rel/${APP_NAME}/releases/start_erl.data | awk '{print $2}')"
-          export SOURCE="_build/prod/rel/${APP_NAME}/releases/${VERSION}/${APP_NAME}.tar.gz"
-          export TARGET="/tmp/${APP_NAME}.tar.gz"
-          rsync -cha --delete $SOURCE production:$TARGET
+          rsync -ahz --delete . production:${BUILD_DIR}
 
-          ssh production "bash -s" <<EOF
-            rm -rf app
-            tar xf  $TARGET --one-top-level -C .
-            systemctl restart deploy-phoenix
-          EOF
+      - name: mix deps.get
+        run: |
+          ssh production "cd ${BUILD_DIR} && mix deps.get"
+
+      - name: mix compile
+        run: |
+          ssh production "cd ${BUILD_DIR} && mix compile"
+
+      - name: mix distillery.release
+        run: |
+          ssh production "cd ${BUILD_DIR} && mix distillery.release"

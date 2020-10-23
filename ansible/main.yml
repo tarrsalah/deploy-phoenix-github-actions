@@ -1,5 +1,5 @@
 - name: Prepare production server
-  hosts: ic_server
+  hosts: github_actions
   roles:
     - role: './roles/common'
     - role: './roles/nginx'
