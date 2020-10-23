@@ -16,5 +16,6 @@
 - name: erlang - install erlang
   apt:
     package:
-      - "erlang=1:23.*"
+      - "erlang"
+      - "elixir"
     state: present

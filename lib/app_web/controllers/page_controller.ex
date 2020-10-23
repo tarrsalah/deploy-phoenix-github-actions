@@ -3,6 +3,6 @@ defmodule AppWeb.PageController do
 
   def index(conn, _params) do
     sha = Application.get_env(:app, :sha)
-    conn |> send_resp(:ok, "deployed #(#{sha}) with a github action.")
+    conn |> send_resp(:ok, "deployed with a github action.")
   end
 end

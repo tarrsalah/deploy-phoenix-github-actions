@@ -54,8 +54,7 @@ jobs:
           rsync -cha --delete $SOURCE production:$TARGET
 
           ssh production "bash -s" <<EOF
-            systemctl stop deploy-phoenix
             rm -rf app
             tar xf  $TARGET --one-top-level -C .
-            systemctl start deploy-phoenix
+            systemctl restart deploy-phoenix
           EOF
